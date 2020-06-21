@@ -4,7 +4,7 @@ const app = express()
 const sqlite = require('sqlite-async')
 
 const run = async () => {
-  const db = await sqlite.open(process.env.DEV ? 'db_dev' : 'db')
+  const db = await sqlite.open(process.env.PORT ? 'db' : 'db_dev')
   await db.transaction(db => Promise.all([
     db.run(`CREATE TABLE IF NOT EXISTS users (
       username TEXT PRIMARY KEY,
@@ -135,7 +135,7 @@ const run = async () => {
   // home route
   app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
 
-  app.listen(8080, () => console.log('Listening on port 8080'))
+  app.listen(8080, () => console.log(process.env.PORT || 'Listening on port 8080'))
 }
 
 run()

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "cross-env DEV=true nodemon --watch app.js app.js"
+    "dev": "nodemon --watch app.js app.js"
   },
   "keywords": [],
   "author": "pynnl",
@@ -15,7 +15,6 @@
     "sqlite-async": "^1.1.0"
   },
   "devDependencies": {
-    "cross-env": "^7.0.2",
     "eslint": "^7.3.0",
     "eslint-config-standard": "^14.1.1",
     "eslint-plugin-html": "^6.0.2",
