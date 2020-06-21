@@ -129,6 +129,9 @@ const run = async () => {
     res.json({ code: 0, msg: 'Task deleted' })
   })
 
+  // get db file (for dev purposes only)
+  app.get('/api/db', (req, res) => res.sendFile(path.join(__dirname, 'db')))
+
   // home route
   app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
 
