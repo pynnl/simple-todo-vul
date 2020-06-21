@@ -1,0 +1,13 @@
+env:
+  browser: true
+  es2020: true
+extends:
+  - standard
+parserOptions:
+  ecmaVersion: 11
+plugins:
+  - eslint-plugin-html
+rules:
+  quotes: 0
+  indent: [2, 2, {flatTernaryExpressions: true}]
+  camelcase: 0

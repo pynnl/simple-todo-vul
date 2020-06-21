@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link href='https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900' rel='stylesheet'>
+  <link href='https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css' rel='stylesheet'>
+  <link href='https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css' rel='stylesheet'>
+  <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui'>
+</head>
+
+<body>
+  <div id='app'>
+    <v-app>
+      <v-app-bar app flat dark>
+        <v-toolbar-title>Simple Todo List</v-toolbar-title>
+        <v-spacer></v-spacer>
+        <form v-if='!viewedUser' class='d-flex align-center justify-end' style='width:500px'>
+          <span v-if='logged' class='mx-1'>{{username}}</span>
+          <template v-else>
+            <v-text-field dense outlined hide-details class='mx-1' placeholder='Username' v-model='username'>
+            </v-text-field>
+            <v-text-field dense outlined hide-details class='mx-1' placeholder='Password' type='password'
+              v-model='password'></v-text-field>
+          </template>
+          <v-btn type='submit' outlined width='200' class='mx-1' @click.prevent='log'>{{logged ? 'Logout' : 'Login | Register'}}</v-btn>
+        </form>
+      </v-app-bar>
+
+      <v-main>
+        <v-container>
+          <v-row justify='center'>
+            <v-col sm='8' md='6'>
+
+              <div class='d-flex align-center mb-5'>
+                <v-text-field :disabled='!shareURL' readonly outlined hide-details dense :value='shareURL' label='Share URL'></v-text-field>
+                <v-btn id='copy-share' :dark='!!shareURL' depressed @click='showSnackbar(`Share URL copied`)' class='ml-2' :data-clipboard-text='shareURL' :disabled='!shareURL'>Copy</v-btn>
+              </div>      
+
+              <v-treeview :items='lists' :open.sync='listOpens' transition hoverable>
+                <template v-slot:label='{ item }'>
+                    <v-text-field v-if='!item.empty' dense single-field hide-details placeholder='Description' class='mt-0 mx-2' v-model='item.description' @change='item.isList ? updateList(item) : updateTask(item)' :readonly='!!viewedUser'></v-text-field>              
+                </template>
+    
+                <template v-slot:append='{ item }'>
+                  <div v-if='!item.empty' class='d-flex align-center'>
+                    <v-checkbox v-if='item.isList' dense hide-details label='Public' class='mt-0' v-model='item.is_public' @change='updateList(item)' :disabled='!!viewedUser'></v-checkbox>
+                    <v-divider v-if='item.isList' vertical class='ml-4 mr-1'></v-divider>
+                    <v-btn icon @click='item.isList ? deleteList(item) : deleteTask(item)' :disabled='!!viewedUser'>
+                      <v-icon>mdi-delete</v-icon>
+                    </v-btn>
+                  </div>
+                  <v-btn v-else v-else dark depressed @click='createTask(item)'>New task</v-btn>
+                </template>
+              </v-treeview>
+              
+              <v-btn v-show='!viewedUser' :disabled='!logged' :dark='!!logged' id='new-list' depressed @click='createList' class='mt-5'>New list</v-btn>
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-main>
+
+      <v-snackbar v-model='snackbar' timeout='3000'>
+        {{snackbarText}}
+        <template v-slot:action='{ attrs }'>
+          <v-btn text color='blue' v-bind='attrs' @click='snackbar = false'>Close</v-btn>
+        </template>
+      </v-snackbar>
+    </v-app>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+  <script src='https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js'></script>
+  <script>
+    /* global Vue, Vuetify, ClipboardJS */
+
+    // eslint-disable-next-line no-new
+    new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      data: {
+        viewedUser: '',
+        username: '',
+        password: '',
+        logged: false,
+        snackbar: false,
+        snackbarText: '',
+        lists: [],
+        listOpens: []
+      },
+      computed: {
+        shareURL () {
+          return (this.viewedUser || this.logged)
+            ? location.host + '/' + (this.viewedUser || this.username)
+            : ''
+        }
+      },
+      methods: {
+        showSnackbar (text) {
+          this.snackbarText = text
+          this.snackbar = true
+        },
+        async request (url, ...data) {
+          const res = await fetch(url, {
+            method: data[0],
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              username: this.username,
+              password: this.password,
+              ...data[1]
+            })
+          })
+          const json = await res.json()
+          console.log(json)
+          return json
+        },
+        async log () {
+          if (this.logged) {
+            // clear cache user info to log out
+            this.logged = false
+            this.username = ''
+            this.password = ''
+            localStorage.clear()
+            this.lists = []
+            this.showSnackbar('Logged out')
+          } else {
+            const res = await this.request('api/login-register', 'post')
+            if (res.code === 0 || res.code === 11) {
+              // if login successfully, cache user info
+              this.logged = true
+              localStorage.setItem('logged', this.logged)
+              localStorage.setItem('username', this.username)
+              localStorage.setItem('password', this.password)
+              this.getLists()
+            }
+            this.showSnackbar(res.msg)
+          }
+        },
+        async getLists (username) {
+          const res = await this.request(`api/get${username ? '-public' : ''}-lists`, 'post', username && {
+            username,
+            password: 'any'
+          })
+          if (res.code === 0) {
+            this.lists = res.lists.map(e => {
+              e.isList = true
+              this.viewedUser || e.children.push({ empty: true })
+              return e
+            })
+          }
+          return res
+        },
+        async createList () {
+          const { id, msg } = await this.request('api/update-list', 'post')
+          this.lists.push({
+            id,
+            description: '',
+            is_public: 0,
+            isList: true,
+            children: [{ empty: true }]
+          })
+          this.listOpens.push(id)
+          this.showSnackbar(msg)
+          this.$vuetify.goTo('#new-list')
+        },
+        async updateList (list) {
+          const res = await this.request('api/update-list', 'post', {
+            id: list.id,
+            description: list.description,
+            is_public: list.is_public ? 1 : 0
+          })
+          document.activeElement.blur()
+          this.showSnackbar(res.msg)
+        },
+        async deleteList (list) {
+          const res = await this.request('api/delete-list', 'post', {
+            id: list.id
+          })
+          const idx = this.lists.findIndex(e => e === list)
+          this.lists.splice(idx, 1)
+          this.showSnackbar(res.msg)
+        },
+        async createTask (task) {
+          for (const e of this.lists) {
+            const idx = e.children.findIndex(f => f === task)
+            if (idx !== -1) {
+              const { id, msg } = await this.request('api/update-task', 'post', {
+                listId: e.id
+              })
+              e.children.splice(-1, 0, {
+                id,
+                description: ''
+              })
+              this.showSnackbar(msg)
+              break
+            }
+          }
+        },
+        async updateTask (task) {
+          const res = await this.request('api/update-task', 'post', {
+            id: task.id,
+            description: task.description
+          })
+          document.activeElement.blur()
+          this.showSnackbar(res.msg)
+        },
+        async deleteTask (task) {
+          const res = await this.request('api/delete-task', 'post', {
+            id: task.id
+          })
+          for (const e of this.lists) {
+            const idx = e.children.findIndex(f => f === task)
+            if (idx !== -1) {
+              e.children.splice(idx, 1)
+              break
+            }
+          }
+          this.showSnackbar(res.msg)
+        }
+      },
+      async created () {
+        // init task lists
+        const username = location.pathname.split('/')[1]
+        if (username) {
+          this.viewedUser = username
+          this.getLists(username)
+        } else {
+          this.logged = localStorage.getItem('logged')
+          if (this.logged) {
+            this.username = localStorage.getItem('username')
+            this.password = localStorage.getItem('password')
+            if ((await this.getLists()).code !== 0) {
+              this.logged = false
+              this.username = ''
+              this.password = ''
+            }
+          }
+        }
+      }
+    })
+
+    // eslint-disable-next-line no-new
+    new ClipboardJS('#copy-share')
+  </script>
+</body>
+
+</html>
