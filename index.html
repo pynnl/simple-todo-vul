@@ -10,62 +10,64 @@
 
 <body>
   <div id='app'>
-    <v-app>
-      <v-app-bar app flat dark>
-        <v-toolbar-title>Simple Todo List</v-toolbar-title>
-        <v-spacer></v-spacer>
-        <form v-if='!viewedUser' class='d-flex align-center justify-end' style='width:500px'>
-          <span v-if='logged' class='mx-1'>{{username}}</span>
-          <template v-else>
-            <v-text-field dense outlined hide-details class='mx-1' placeholder='Username' v-model='username'>
-            </v-text-field>
-            <v-text-field dense outlined hide-details class='mx-1' placeholder='Password' type='password'
-              v-model='password'></v-text-field>
+    <template v-if='showApp'>
+      <v-app>
+        <v-app-bar app flat dark>
+          <v-toolbar-title>Simple Todo List</v-toolbar-title>
+          <v-spacer></v-spacer>
+          <form v-if='!viewedUser' class='d-flex align-center justify-end' style='width:500px'>
+            <span v-if='logged' class='mx-1'>{{username}}</span>
+            <template v-else>
+              <v-text-field dense outlined hide-details class='mx-1' placeholder='Username' v-model='username'>
+              </v-text-field>
+              <v-text-field dense outlined hide-details class='mx-1' placeholder='Password' type='password'
+                v-model='password'></v-text-field>
+            </template>
+            <v-btn type='submit' outlined width='200' class='mx-1' @click.prevent='log'>{{logged ? 'Logout' : 'Login | Register'}}</v-btn>
+          </form>
+        </v-app-bar>
+  
+        <v-main>
+          <v-container>
+            <v-row justify='center'>
+              <v-col sm='8' md='6'>
+  
+                <div class='d-flex align-center mb-5'>
+                  <v-text-field :disabled='!shareURL' readonly outlined hide-details dense :value='shareURL' label='Share URL'></v-text-field>
+                  <v-btn id='copy-share' :dark='!!shareURL' depressed @click='showSnackbar(`Share URL copied`)' class='ml-2' :data-clipboard-text='shareURL' :disabled='!shareURL'>Copy</v-btn>
+                </div>      
+  
+                <v-treeview :items='lists' :open.sync='listOpens' transition hoverable>
+                  <template v-slot:label='{ item }'>
+                      <v-text-field v-if='!item.empty' dense single-field hide-details placeholder='Description' class='mt-0 mx-2' v-model='item.description' @change='item.isList ? updateList(item) : updateTask(item)' :readonly='!!viewedUser'></v-text-field>              
+                  </template>
+      
+                  <template v-slot:append='{ item }'>
+                    <div v-if='!item.empty' class='d-flex align-center'>
+                      <v-checkbox v-if='item.isList' dense hide-details label='Public' class='mt-0' v-model='item.is_public' @change='updateList(item)' :disabled='!!viewedUser'></v-checkbox>
+                      <v-divider v-if='item.isList' vertical class='ml-4 mr-1'></v-divider>
+                      <v-btn icon @click='item.isList ? deleteList(item) : deleteTask(item)' :disabled='!!viewedUser'>
+                        <v-icon>mdi-delete</v-icon>
+                      </v-btn>
+                    </div>
+                    <v-btn v-else v-else dark depressed @click='createTask(item)'>New task</v-btn>
+                  </template>
+                </v-treeview>
+                
+                <v-btn v-show='!viewedUser' :disabled='!logged' :dark='!!logged' id='new-list' depressed @click='createList' class='mt-5'>New list</v-btn>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-main>
+  
+        <v-snackbar v-model='snackbar' timeout='3000'>
+          {{snackbarText}}
+          <template v-slot:action='{ attrs }'>
+            <v-btn text color='blue' v-bind='attrs' @click='snackbar = false'>Close</v-btn>
           </template>
-          <v-btn type='submit' outlined width='200' class='mx-1' @click.prevent='log'>{{logged ? 'Logout' : 'Login | Register'}}</v-btn>
-        </form>
-      </v-app-bar>
-
-      <v-main>
-        <v-container>
-          <v-row justify='center'>
-            <v-col sm='8' md='6'>
-
-              <div class='d-flex align-center mb-5'>
-                <v-text-field :disabled='!shareURL' readonly outlined hide-details dense :value='shareURL' label='Share URL'></v-text-field>
-                <v-btn id='copy-share' :dark='!!shareURL' depressed @click='showSnackbar(`Share URL copied`)' class='ml-2' :data-clipboard-text='shareURL' :disabled='!shareURL'>Copy</v-btn>
-              </div>      
-
-              <v-treeview :items='lists' :open.sync='listOpens' transition hoverable>
-                <template v-slot:label='{ item }'>
-                    <v-text-field v-if='!item.empty' dense single-field hide-details placeholder='Description' class='mt-0 mx-2' v-model='item.description' @change='item.isList ? updateList(item) : updateTask(item)' :readonly='!!viewedUser'></v-text-field>              
-                </template>
-    
-                <template v-slot:append='{ item }'>
-                  <div v-if='!item.empty' class='d-flex align-center'>
-                    <v-checkbox v-if='item.isList' dense hide-details label='Public' class='mt-0' v-model='item.is_public' @change='updateList(item)' :disabled='!!viewedUser'></v-checkbox>
-                    <v-divider v-if='item.isList' vertical class='ml-4 mr-1'></v-divider>
-                    <v-btn icon @click='item.isList ? deleteList(item) : deleteTask(item)' :disabled='!!viewedUser'>
-                      <v-icon>mdi-delete</v-icon>
-                    </v-btn>
-                  </div>
-                  <v-btn v-else v-else dark depressed @click='createTask(item)'>New task</v-btn>
-                </template>
-              </v-treeview>
-              
-              <v-btn v-show='!viewedUser' :disabled='!logged' :dark='!!logged' id='new-list' depressed @click='createList' class='mt-5'>New list</v-btn>
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-main>
-
-      <v-snackbar v-model='snackbar' timeout='3000'>
-        {{snackbarText}}
-        <template v-slot:action='{ attrs }'>
-          <v-btn text color='blue' v-bind='attrs' @click='snackbar = false'>Close</v-btn>
-        </template>
-      </v-snackbar>
-    </v-app>
+        </v-snackbar>
+      </v-app>
+    </template v-if='showApp'> 
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
@@ -79,6 +81,7 @@
       el: '#app',
       vuetify: new Vuetify(),
       data: {
+        showApp: false,
         viewedUser: '',
         username: '',
         password: '',
@@ -238,6 +241,7 @@
             }
           }
         }
+        this.showApp = true
       }
     })
 

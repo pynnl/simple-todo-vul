@@ -39,7 +39,8 @@ const run = async () => {
       : user.password !== req.body.password ? 12 // wrong password
       : 0 // valid
 
-    if (!['login-register', 'get-public-lists'].includes(req.params.id) && code !== 0) {
+    const publicApis = ['login-register', 'get-public-lists', 'db']
+    if (!publicApis.includes(req.params.id) && code !== 0) {
       res.json({ code, msg: 'Unauthorized user' })
     } else {
       res.locals.code = code
